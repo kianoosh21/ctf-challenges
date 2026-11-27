@@ -1,0 +1,16 @@
+#!/bin/sh
+# Called by the lab orchestrator (docker exec -i) right after the container starts.
+# usage: ws-setup <username>   (password is read from stdin)
+set -e
+U="$1"
+IFS= read -r PW
+if ! id "$U" >/dev/null 2>&1; then
+    useradd -m -s /bin/bash -G sudo "$U"
+fi
+# arp-scan drops privileges and looks for its vendor file in the current directory first;
+# a 0700 home directory makes it print "Permission denied" and show (Unknown) vendors.
+chmod 755 "/home/$U"
+printf '%s:%s\n' "$U" "$PW" | chpasswd
+# Broken on purpose: this DNS server was decommissioned.
+printf 'search corp.local\nnameserver 10.10.10.53\n' > /etc/resolv.conf
+grep -q fin-ws07 /etc/hosts || printf '127.0.1.1\tfin-ws07.corp.local fin-ws07\n' >> /etc/hosts

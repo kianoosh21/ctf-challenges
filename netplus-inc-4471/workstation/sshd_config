@@ -1,0 +1,22 @@
+# Only reachable from inside this container's own network namespace (loopback).
+ListenAddress 127.0.0.1
+AddressFamily inet
+Port 22
+PermitRootLogin no
+PasswordAuthentication yes
+KbdInteractiveAuthentication no
+UsePAM yes
+PrintMotd no
+PrintLastLog no
+X11Forwarding no
+AllowTcpForwarding no
+AllowAgentForwarding no
+AllowStreamLocalForwarding no
+PermitTunnel no
+ClientAliveInterval 30
+ClientAliveCountMax 4
+MaxSessions 6
+MaxStartups 10:30:20
+LoginGraceTime 60
+UseDNS no
+AcceptEnv LANG LC_*

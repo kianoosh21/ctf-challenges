@@ -1,0 +1,19 @@
+
+  +--------------------------------------------------------------+
+  |  CorpNet Helpdesk   |   Ticket INC-4471   |   Priority: HIGH   |
+  +--------------------------------------------------------------+
+   Reported by : Finance team, workstation FIN-WS07 (this machine)
+   Symptom     : "The intranet portal won't load. Nothing works!"
+   Portal URL  : http://portal.corp.local
+
+   You are the on-site network technician. Work the problem
+   bottom-up (OSI layer 1 -> 7), fix what is broken and collect
+   the 4 flags on the way. Submit flags on your dashboard.
+
+   You have sudo on this workstation.
+   Tools: ip  ping  arp-scan  nmap  dig  nslookup  traceroute  mtr
+          tcpdump  curl  w3m  telnet  nc  tmux  nano
+
+   A copy of this ticket is in ~/TICKET.txt
+  +--------------------------------------------------------------+
+
