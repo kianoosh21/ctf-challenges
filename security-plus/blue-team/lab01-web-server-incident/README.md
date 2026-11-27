@@ -53,7 +53,7 @@ On the same computer, open <http://localhost:8081/dashboard>.
 | Not supported | Rootless Docker and Podman. The lab needs a privileged container (see [Security](#security)). |
 | CPU | x86_64 or arm64 (only x86_64 tested) |
 | RAM | About 45 MB for the lab server plus about 10 MB per idle lab. See [Capacity](#capacity). |
-| Disk | About 450 MB for the two images |
+| Disk | About 370 MB for the two images |
 
 ## Running a class
 
@@ -122,6 +122,7 @@ Measured on a 1 vCPU / 1 GB RAM cloud server:
 |---|---|
 | Lab server with no labs running | about 35 MB RAM |
 | Each lab running, nobody logged in | about 10 MB RAM (6 MB server container, the rest in the lab server) |
+| 6 students clicking Launch at the same time | all 6 running within 14 seconds (each lab takes 4 to 5 seconds, two build at once) |
 
 This lab has not been load tested with a full class yet. It is built the same way as the Network+ lab, which measured about 18 MB per active student and handled 14 labs on the same 1 GB server. Each server container is limited to 192 MB RAM, half a CPU and 200 processes. The lab also refuses new launches when the host runs low on memory.
 
