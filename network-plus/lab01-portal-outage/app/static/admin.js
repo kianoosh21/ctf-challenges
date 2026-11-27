@@ -33,15 +33,16 @@
     $('#panel').classList.remove('hidden');
     claimsOpen = s.claims_open;
     $('#btnClaims').textContent = claimsOpen ? 'Close new claims' : 'Open new claims';
-    const done = s.students.filter((x) => x.solved.length === 4).length;
+    const ids = s.stage_ids || ['1', '2', '3', '4'];
+    const done = s.students.filter((x) => x.solved.length === ids.length).length;
     $('#stats').replaceChildren(
       stat('Students', s.students.length), stat('Machines running', s.running + ' / ' + s.max_envs),
-      stat('Finished (4/4)', done), stat('RAM available', s.mem.mem_avail_mb + ' MB'),
+      stat('Finished (all stages)', done), stat('RAM available', s.mem.mem_avail_mb + ' MB'),
       stat('Swap free', s.mem.swap_free_mb + ' MB'), stat('New claims', claimsOpen ? 'open' : 'closed'));
     $('#rows').replaceChildren(...s.students.map((st) => el('tr', {},
       el('td', {}, el('code', { text: st.username })),
       el('td', {}, el('code', { text: st.password })),
-      el('td', {}, ...['1', '2', '3', '4'].map((n) => el('span', { class: 'fl' + (st.solved.includes(n) ? ' on' : ''), text: n }))),
+      el('td', {}, ...ids.map((n) => el('span', { class: 'fl' + (st.solved.includes(n) ? ' on' : ''), text: n }))),
       el('td', { text: String(st.score) }),
       el('td', {}, el('span', { class: 'pill ' + st.env.state, text: st.env.state }), st.env.msg ? el('div', { class: 'muted small', text: st.env.msg }) : null),
       el('td', { text: String(st.terms) }),

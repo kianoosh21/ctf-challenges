@@ -1,0 +1,20 @@
+
+  +--------------------------------------------------------------+
+  |  CorpNet SOC   |   Ticket INC-5203   |   Priority: CRITICAL  |
+  +--------------------------------------------------------------+
+   Asset  : WEB-01, public website, DMZ 10.20.0.10 (this server)
+   Alert  : EDR saw periodic outbound HTTP from WEB-01 to an
+            unknown internet host, about every 20 seconds.
+
+   You are the on-call incident responder. Work the incident
+   response process: detect, analyze, contain, eradicate,
+   recover. The website must stay up for customers.
+
+   You have sudo. IR notes and known-good baselines: /opt/ir
+   Logs: /var/log/auth.log  /var/log/nginx/access.log
+   Tools: ps  ss  lsof  tcpdump  iptables  grep  awk  find
+          sha256sum  strings  file  base64  curl  dig  tmux
+
+   A copy of this ticket is in ~/TICKET.txt
+  +--------------------------------------------------------------+
+

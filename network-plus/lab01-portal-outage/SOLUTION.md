@@ -1,4 +1,4 @@
-# INC-4471: Network+ Troubleshooting Lab (instructor walkthrough)
+# Network+ Lab 01: Portal outage (INC-4471): instructor walkthrough
 
 > **Spoiler warning.** This is the full solution. Students should not read it before the lab.
 

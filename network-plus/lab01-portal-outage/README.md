@@ -1,6 +1,6 @@
-# INC-4471: Network+ troubleshooting lab
+# Network+ Lab 01: Portal outage (INC-4471)
 
-A hands-on, CTF-style lab for CompTIA Network+ classes. Each student gets their own small corporate network and a broken workstation. Their job is to work a helpdesk ticket ("the intranet portal won't load") from the bottom of the OSI model up, fix each fault, and collect four flags.
+The first lab in the Network+ series of [ctf-challenges](../../README.md). A hands-on, CTF-style lab for CompTIA Network+ classes. Each student gets their own small corporate network and a broken workstation. Their job is to work a helpdesk ticket ("the intranet portal won't load") from the bottom of the OSI model up, fix each fault, and collect four flags.
 
 Everything runs in the browser. Students open one URL, click **Claim credentials** and **Launch lab**, and get a Linux terminal on their own workstation. Nothing to install on student machines.
 
@@ -25,7 +25,7 @@ You need Docker with Docker Compose v2.
 
 ```bash
 git clone https://github.com/kianoosh21/ctf-challenges.git
-cd ctf-challenges/netplus-inc-4471
+cd ctf-challenges/network-plus/lab01-portal-outage
 docker compose up -d --build
 docker compose logs netlab
 ```
@@ -78,6 +78,10 @@ The instructor view shows:
 
 Lab machines stop by themselves after 8 hours (`LAB_HOURS`). Students can relaunch at any time.
 
+## Running several labs on one host
+
+Each lab in this repo has its own default ports, images and data volume, so several can run on the same machine at once. This lab uses ports 8080 and 8443. Only one lab can use ports 80 and 443. To give several labs a trusted certificate, get one with certbot (or any ACME client) and point every lab at the same files with `TLS_CERT` and `TLS_KEY`. Renewed files are picked up within 10 minutes, no restart needed.
+
 ## Real HTTPS certificate on a cloud server
 
 On a server with a public IP address or DNS name, the lab can get a free Let's Encrypt certificate by itself. Create `.env` next to `docker-compose.yml`:
@@ -117,7 +121,7 @@ The lab also refuses new launches when the host runs low on memory, so a full cl
 
 ## Everyday commands
 
-Run these in the `netplus-inc-4471` folder.
+Run these in the `network-plus/lab01-portal-outage` folder.
 
 | Task | Command |
 |---|---|
@@ -184,7 +188,7 @@ A 1 GB server is comfortable for 15 to 20 students. For a bigger class, give the
 | Browser warns about the certificate | Expected with the self-signed certificate. Use plain HTTP on a LAN, or set `PUBLIC_HOST` for a real certificate. |
 | Let's Encrypt keeps failing | Port 80 on `PUBLIC_HOST` must reach this container (`HTTP_PORT=80`). The log shows the exact error; the lab retries every hour. |
 | Lost the instructor key | `docker compose exec netlab cat /var/lib/netlab/admin.key` |
-| Workstation containers left over after a crash | They are removed on the next start. To remove them by hand: `docker rm -f $(docker ps -aq --filter label=netlab.instance=netplus-inc-4471)` |
+| Workstation containers left over after a crash | They are removed on the next start. To remove them by hand: `docker rm -f $(docker ps -aq --filter label=netlab.instance=nplus-lab01)` |
 | `workstation-image` shows as exited | Expected. It only builds the workstation image and exits. |
 
 ## Files

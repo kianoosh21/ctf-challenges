@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab: instructor view</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/dashboard/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">NET<b>LAB</b></span><span class="title">Instructor view</span></div>
+  <div class="who"><a href="/dashboard/">student dashboard</a></div>
+</header>
+<main class="admin">
+  <section class="card hidden" id="loginBox" style="max-width:420px">
+    <h2>Instructor key</h2>
+    <form id="keyForm" class="flagform"><input id="key" type="password" placeholder="admin key"><button class="btn primary">Sign in</button></form>
+    <p class="err" id="keyErr"></p>
+  </section>
+  <div id="panel" class="hidden">
+    <div class="stats" id="stats"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn" id="btnClaims"></button>
+      <button class="btn ghost" id="btnStopAll">Stop all lab machines</button>
+    </div>
+    <table>
+      <thead><tr><th>Student</th><th>Password</th><th>Stages</th><th>Points</th><th>Machine</th><th>Terms</th><th>Last seen</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+<script src="/dashboard/static/admin.js"></script>
+</body>
+</html>

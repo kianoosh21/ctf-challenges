@@ -1,0 +1,2 @@
+Defaults lecture=never
+%sudo ALL=(ALL:ALL) NOPASSWD: ALL

@@ -22,8 +22,9 @@ import lab
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = lab.STATE_DIR
-COOKIE = 'nl_session'
-ADMIN_COOKIE = 'nl_admin'
+# Cookie names include the lab id so two labs on the same host (different ports) never share a session.
+COOKIE = content.LAB_ID + '_session'
+ADMIN_COOKIE = content.LAB_ID + '_admin'
 HTTP_PORT = int(os.environ.get('NETLAB_HTTP_PORT', '8080'))
 HTTPS_PORT = int(os.environ.get('NETLAB_HTTPS_PORT', '8443'))
 # Ports as seen from outside the container (only used for log messages and the HTTP->HTTPS redirect).
@@ -281,7 +282,7 @@ def env_view(st, mgr):
 async def api_state(request):
     store, mgr = request.app['store'], request.app['mgr']
     tok, s, st = current(request)
-    data = {'title': content.TITLE, 'briefing': content.BRIEFING, 'claimed': False,
+    data = {'title': content.TITLE, 'briefing': content.BRIEFING, 'claimed': False, 'ui': content.UI,
             'claims_open': store.setting('claims_open', '1') == '1', 'max_score': content.MAX_SCORE}
     solved = {}
     if s:
@@ -291,9 +292,12 @@ async def api_state(request):
         solved = json.loads(st['solved'])
         data.update(claimed=True, username=st['username'], password=st['password'], env=env_view(st, mgr),
                     score=score_of(solved))
+    last = request.app['check_results']
     data['stages'] = [{'id': x['id'], 'points': x['points'], 'title': x['title'], 'tag': x['tag'],
                        'desc': x['desc'], 'hints': x['hints'], 'solved': x['id'] in solved,
-                       'solved_at': solved.get(x['id'])} for x in content.STAGES]
+                       'solved_at': solved.get(x['id']), 'kind': x.get('kind', 'flag'),
+                       'checks': [c[1] for c in x.get('checks', [])],
+                       'last_check': last.get((st['id'], x['id'])) if st else None} for x in content.STAGES]
     data['scoreboard'] = scoreboard(store)
     resp = web.json_response(data)
     if not s:
@@ -391,11 +395,46 @@ async def api_flag(request):
     return web.json_response({'ok': False, 'error': 'That is not one of your flags. Flags are unique to each student.'})
 
 
+async def api_check(request):
+    """Run the live checks for a remediation stage and solve it when every check passes."""
+    check_post(request)
+    store, mgr = request.app['store'], request.app['mgr']
+    _, st = require_student(request)
+    body = await request.json()
+    stage = next((x for x in content.STAGES if x['id'] == str(body.get('stage'))), None)
+    if not stage or stage.get('kind') != 'check':
+        return web.json_response({'ok': False, 'error': 'This stage is solved with a flag, not a check.'})
+    env = mgr.envs.get(st['sid'])
+    if not env or st['env_state'] != 'running':
+        return web.json_response({'ok': False, 'error': 'Your lab is not running.'})
+    if not request.app['check_rl'].ok(st['id']):
+        return web.json_response({'ok': False, 'error': 'Checks take a few seconds. Wait a moment and try again.'})
+    try:
+        results = await asyncio.wait_for(env.check(stage['id']), 40)
+    except Exception as e:
+        log.warning('check %s stage %s failed: %r', st['sid'], stage['id'], e)
+        return web.json_response({'ok': False, 'error': 'The check could not run. Try again in a moment.'})
+    labels = dict(stage['checks'])
+    out = [{'label': labels[k], 'ok': bool(results.get(k))} for k, _ in stage['checks']]
+    passed = all(r['ok'] for r in out)
+    request.app['check_results'][(st['id'], stage['id'])] = {'at': time.time(), 'results': out}
+    already = stage['id'] in json.loads(st['solved'])
+    if passed:
+        store.solve(st['id'], stage['id'])
+        if not already:
+            log.info('%s solved stage %s (checks)', st['username'], stage['id'])
+    n = sum(r['ok'] for r in out)
+    msg = (('Already solved: ' if already else 'All checks passed. Stage %s solved: ' % stage['id']) + stage['title']
+           if passed else '%d of %d checks pass. Keep going.' % (n, len(out)))
+    return web.json_response({'ok': True, 'passed': passed, 'results': out, 'msg': msg})
+
+
 # ------------------------------------------------------------------ terminal
 
 class TermSession:
-    BANNER = ('\r\n\x1b[1;36m  FIN-WS07 console\x1b[0m  (CorpNet Finance LAN)\r\n'
-              '  Log in with the username and password from your dashboard.\r\n\r\n')
+    BANNER = ('\r\n\x1b[1;36m  %s\x1b[0m  %s\r\n'
+              '  Log in with the username and password from your dashboard.\r\n\r\n'
+              % (content.UI['console'], content.UI['console_sub']))
 
     def __init__(self, ws, env, cols, rows):
         self.ws, self.env = ws, env
@@ -467,7 +506,7 @@ class TermSession:
             await self.send(self.BANNER)
             fails = 0
             while True:
-                await self.send('fin-ws07 login: ')
+                await self.send(content.UI['hostname'] + ' login: ')
                 user = await self.readline(True)
                 if user is None or not user.strip():
                     continue
@@ -627,6 +666,7 @@ async def api_admin_state(request):
                      'last_seen': st['last_seen'], 'terms': request.app['term_counts'].get(st['sid'], 0)})
     return web.json_response({'auth': True, 'students': rows, 'mem': lab.mem_status(),
                               'running': len(mgr.envs), 'max_envs': mgr.max_envs,
+                              'stage_ids': [x['id'] for x in content.STAGES],
                               'claims_open': store.setting('claims_open', '1') == '1'})
 
 
@@ -702,6 +742,7 @@ class Tls:
         if TLS_CERT and TLS_KEY:
             self.mode = 'own'
             self.ctx.load_cert_chain(TLS_CERT, TLS_KEY)
+            self.own_mtime = self._mtime()
             self.desc = 'your certificate (%s)' % TLS_CERT
         elif PUBLIC_HOST:
             self.mode = 'acme'
@@ -721,6 +762,25 @@ class Tls:
 
     def _load_le(self):
         self.ctx.load_cert_chain(os.path.join(self.le_dir, 'fullchain.pem'), os.path.join(self.le_dir, 'privkey.pem'))
+
+    def _mtime(self):
+        try:
+            return max(os.stat(TLS_CERT).st_mtime, os.stat(TLS_KEY).st_mtime)
+        except OSError:
+            return None
+
+    async def watch_own(self):
+        """Pick up renewed certificate files without a restart."""
+        while True:
+            await asyncio.sleep(600)
+            m = self._mtime()
+            if m and m != self.own_mtime:
+                try:
+                    self.ctx.load_cert_chain(TLS_CERT, TLS_KEY)
+                    self.own_mtime = m
+                    log.info('reloaded the certificate from %s', TLS_CERT)
+                except Exception as e:
+                    log.error('could not reload %s: %s', TLS_CERT, e)
 
     async def acme_loop(self):
         while True:
@@ -757,6 +817,8 @@ def make_app():
     app['claim_rl'] = RateLimit(60, 60)
     app['login_rl'] = RateLimit(20, 60)
     app['flag_rl'] = RateLimit(20, 60)
+    app['check_rl'] = RateLimit(8, 60)
+    app['check_results'] = {}
     r = app.router
     r.add_get('/.well-known/acme-challenge/{token}', acme_challenge)
     r.add_get('/healthz', healthz)
@@ -771,6 +833,7 @@ def make_app():
     r.add_post('/dashboard/api/launch', api_launch)
     r.add_post('/dashboard/api/stop', api_stop)
     r.add_post('/dashboard/api/flag', api_flag)
+    r.add_post('/dashboard/api/check', api_check)
     r.add_get('/dashboard/ws/term', ws_term)
     r.add_post('/dashboard/api/admin/login', api_admin_login)
     r.add_get('/dashboard/api/admin/state', api_admin_state)
@@ -807,7 +870,9 @@ async def serve():
     await web.TCPSite(runner, '0.0.0.0', HTTP_PORT).start()
     await web.TCPSite(runner, '0.0.0.0', HTTPS_PORT, ssl_context=app['tls'].ctx).start()
     banner(app)
-    acme = asyncio.create_task(app['tls'].acme_loop()) if app['tls'].mode == 'acme' else None
+    tls = app['tls']
+    acme = (asyncio.create_task(tls.acme_loop()) if tls.mode == 'acme'
+            else asyncio.create_task(tls.watch_own()) if tls.mode == 'own' else None)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):

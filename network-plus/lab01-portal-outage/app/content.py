@@ -1,4 +1,17 @@
-TITLE = 'Network+ Troubleshooting Lab: INC-4471'
+LAB_ID = 'nplus01'          # used in cookie names, must be unique per lab
+TITLE = 'Network+ Lab 01: Portal outage (INC-4471)'
+
+UI = {
+    'ticket': 'Ticket INC-4471',
+    'hostname': 'fin-ws07',
+    'console': 'FIN-WS07 console',
+    'console_sub': '(CorpNet Finance LAN)',
+    'flag_example': 'NPLUS{...}',
+    'launch_text': 'The server builds a private network just for you: a workstation, a switch, a router and servers.',
+    'work_text': 'Log in to the workstation from the terminal on this page and find the 4 flags.',
+    'building_text': 'Creating your workstation, switch, router, printer, DNS and web server. '
+                     'This takes about 10 to 30 seconds.',
+}
 
 BRIEFING = (
     'Ticket INC-4471: the Finance workstation FIN-WS07 cannot open the intranet portal '

@@ -118,3 +118,13 @@ input:focus { outline: none; border-color: var(--accent); }
 .admin .stat b { display: block; font-size: 18px; }
 .fl { display: inline-block; width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 4px; background: #1e293b; color: var(--muted); margin-right: 2px; font-size: 11px; }
 .fl.on { background: #065f46; color: #d1fae5; }
+/* remediation checklists */
+.checks { margin: 8px 0 6px; }
+.checks ul { list-style: none; margin: 0 0 8px; padding: 0; }
+.checks li.chk { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 2px 0; }
+.checks .box { width: 14px; text-align: center; font-weight: 700; }
+.checks li.ok .box { color: #34d399; }
+.checks li.bad .box { color: #f87171; }
+.checks li.todo .box { color: #64748b; }
+.checks .row { align-items: center; gap: 10px; }
+.btn.small { padding: 5px 10px; font-size: 13px; }

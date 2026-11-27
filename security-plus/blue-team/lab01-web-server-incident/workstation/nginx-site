@@ -1,0 +1,10 @@
+server {
+    listen 80 default_server;
+    server_name www.corp.local web-01.corp.local;
+    root /var/www/html;
+    index index.html;
+    server_tokens off;
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

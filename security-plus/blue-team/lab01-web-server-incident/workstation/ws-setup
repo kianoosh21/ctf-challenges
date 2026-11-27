@@ -1,0 +1,12 @@
+#!/bin/sh
+# Creates the student's responder account (password on stdin) and points DNS at the lab resolver.
+set -e
+U="$1"
+IFS= read -r PW
+if ! id "$U" >/dev/null 2>&1; then
+    useradd -m -s /bin/bash -G sudo,adm -c "Incident responder" "$U"
+fi
+chmod 755 "/home/$U"
+printf '%s:%s\n' "$U" "$PW" | chpasswd
+printf 'search corp.local\nnameserver 10.20.0.53\n' > /etc/resolv.conf
+grep -q web-01 /etc/hosts || printf '127.0.1.1\tweb-01.corp.local web-01\n' >> /etc/hosts

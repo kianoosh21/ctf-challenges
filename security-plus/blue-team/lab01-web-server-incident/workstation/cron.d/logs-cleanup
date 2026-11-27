@@ -1,0 +1,2 @@
+# Remove old site backups
+17 3 * * * root find /var/backups/www -type f -mtime +14 -delete

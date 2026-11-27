@@ -1,23 +1,23 @@
-# INC-4471 Network+ troubleshooting lab
+# Network+ Lab 01: Portal outage (INC-4471)
 #   docker compose up -d --build     start (first build takes a few minutes)
 #   docker compose logs netlab       shows the URLs and the instructor key
 #   docker compose down              stop and remove every student lab machine
 # Settings: copy .env.example to .env and edit, or just use the defaults below.
-name: netplus-inc-4471
+name: nplus-lab01
 
 services:
   # Builds the student workstation image. The lab controller starts one container
   # from it per student. This service exits straight away; that is expected.
   workstation-image:
     build: ./workstation
-    image: netplus-inc-4471-workstation:latest
+    image: nplus-lab01-workstation:latest
     command: ["true"]
     network_mode: none
     restart: "no"
 
   netlab:
     build: .
-    image: netplus-inc-4471:latest
+    image: nplus-lab01:latest
     depends_on:
       workstation-image:
         condition: service_completed_successfully
@@ -37,8 +37,8 @@ services:
       - "${HTTP_PORT:-8080}:8080"
       - "${HTTPS_PORT:-8443}:8443"
     environment:
-      NETLAB_WS_IMAGE: netplus-inc-4471-workstation:latest
-      NETLAB_INSTANCE: netplus-inc-4471
+      NETLAB_WS_IMAGE: nplus-lab01-workstation:latest
+      NETLAB_INSTANCE: nplus-lab01
       NETLAB_ADMIN_KEY: ${ADMIN_KEY:-}
       NETLAB_MAX_ENVS: ${MAX_LABS:-30}
       NETLAB_MAX_HOURS: ${LAB_HOURS:-8}

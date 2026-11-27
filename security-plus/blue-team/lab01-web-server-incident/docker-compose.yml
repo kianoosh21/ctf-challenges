@@ -1,0 +1,61 @@
+# Security+ Blue Team Lab 01: Web server incident (INC-5203)
+#   docker compose up -d --build     start (first build takes a few minutes)
+#   docker compose logs netlab       shows the URLs and the instructor key
+#   docker compose down              stop and remove every student lab machine
+# Settings: copy .env.example to .env and edit, or just use the defaults below.
+name: secplus-blue-lab01
+
+services:
+  # Builds the student workstation image. The lab controller starts one container
+  # from it per student. This service exits straight away; that is expected.
+  workstation-image:
+    build: ./workstation
+    image: secplus-blue-lab01-workstation:latest
+    command: ["true"]
+    network_mode: none
+    restart: "no"
+
+  netlab:
+    build: .
+    image: secplus-blue-lab01:latest
+    depends_on:
+      workstation-image:
+        condition: service_completed_successfully
+    # Needed to build the per-student networks (namespaces, bridges, iptables) and to
+    # start the workstation containers next to this one. See "Security" in the README.
+    privileged: true
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - netlab-data:/var/lib/netlab
+      # To use your own certificate, put cert.pem and key.pem in ./certs, uncomment this
+      # line and set TLS_CERT / TLS_KEY in .env.
+      # - ./certs:/certs:ro
+    tmpfs:
+      - /run/netns
+    ports:
+      - "${HTTP_PORT:-8081}:8080"
+      - "${HTTPS_PORT:-8444}:8443"
+    environment:
+      NETLAB_WS_IMAGE: secplus-blue-lab01-workstation:latest
+      NETLAB_INSTANCE: secplus-blue-lab01
+      NETLAB_ADMIN_KEY: ${ADMIN_KEY:-}
+      NETLAB_MAX_ENVS: ${MAX_LABS:-30}
+      NETLAB_MAX_HOURS: ${LAB_HOURS:-8}
+      NETLAB_PUBLIC_HOST: ${PUBLIC_HOST:-}
+      NETLAB_ACME_STAGING: ${ACME_STAGING:-0}
+      NETLAB_TLS_CERT: ${TLS_CERT:-}
+      NETLAB_TLS_KEY: ${TLS_KEY:-}
+      NETLAB_TRUST_PROXY: ${TRUST_PROXY:-0}
+      NETLAB_PUBLIC_HTTP_PORT: ${HTTP_PORT:-8081}
+      NETLAB_PUBLIC_HTTPS_PORT: ${HTTPS_PORT:-8444}
+    restart: unless-stopped
+    stop_grace_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  netlab-data:

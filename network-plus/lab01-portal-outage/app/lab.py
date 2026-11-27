@@ -28,10 +28,10 @@ import rtrcli
 
 log = logging.getLogger('netlab.lab')
 
-WS_IMAGE = os.environ.get('NETLAB_WS_IMAGE', 'netplus-inc-4471-workstation:latest')
+WS_IMAGE = os.environ.get('NETLAB_WS_IMAGE', 'nplus-lab01-workstation:latest')
 STATE_DIR = os.environ.get('NETLAB_STATE', '/var/lib/netlab')
 # Label on every workstation container this deployment creates, so cleanup never touches anything else.
-INSTANCE = os.environ.get('NETLAB_INSTANCE', 'netplus-inc-4471')
+INSTANCE = os.environ.get('NETLAB_INSTANCE', 'nplus-lab01')
 ROLES = ['sw', 'rtr', 'prn', 'adm', 'dns', 'web']
 OUI = {'rtr0': '00:00:0c', 'rtr1': '00:00:0c', 'prn': '00:1b:78', 'adm': '00:14:22',
        'ws': '00:1b:21', 'dns': '00:50:56', 'web': '00:50:56'}

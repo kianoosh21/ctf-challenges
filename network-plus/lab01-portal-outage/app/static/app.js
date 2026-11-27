@@ -57,6 +57,12 @@
 
   function render() {
     $('#title').textContent = state.title;
+    document.title = state.title;
+    $('#ticket').textContent = state.ui.ticket;
+    $('#launchText').textContent = state.ui.launch_text;
+    $('#workText').textContent = state.ui.work_text;
+    document.querySelectorAll('.hn').forEach((e) => { e.textContent = state.ui.hostname; });
+    $('#flagIn').placeholder = state.ui.flag_example;
     if (!state.claimed) {
       $('#welcome').classList.remove('hidden');
       $('#dash').classList.add('hidden');
@@ -95,7 +101,7 @@
       ov.classList.remove('hidden');
       $('#ovTitle').textContent = env.state === 'starting' ? 'Building your network...' :
         env.state === 'stopping' ? 'Stopping your lab...' : env.state === 'error' ? 'Something went wrong' : 'Your lab is not running';
-      $('#ovText').textContent = env.state === 'starting' ? 'Creating your workstation, switch, router, printer, DNS and web server. This takes about 10 to 30 seconds.' :
+      $('#ovText').textContent = env.state === 'starting' ? state.ui.building_text :
         env.state === 'error' ? (env.msg + ' Try Launch again, or ask your instructor.') :
         env.state === 'stopping' ? 'One moment.' : 'Click Launch lab to build your private network. It takes about 10 to 30 seconds.';
     }
@@ -115,7 +121,7 @@
     // scoreboard
     const tb = $('#board');
     const rows = state.scoreboard.map((r, i) => el('tr', { class: r.username === state.username ? 'me' : '' },
-      el('td', { text: String(i + 1) }), el('td', { text: r.username }), el('td', { text: r.flags + '/4' }),
+      el('td', { text: String(i + 1) }), el('td', { text: r.username }), el('td', { text: r.flags + '/' + state.stages.length }),
       el('td', { text: String(r.score) })));
     if (!rows.length) rows.push(el('tr', {}, el('td', { colspan: '4', class: 'muted', text: 'No flags yet. Be the first!' })));
     tb.replaceChildren(...rows);
@@ -136,7 +142,32 @@
         el('div', { class: 'pts', text: s.solved ? ('solved ' + fmtTime(s.solved_at) + '  +' + s.points) : (s.points + ' pts') })),
       el('div', { class: 'tag', text: s.tag }),
       el('p', { class: 'desc', text: s.desc }),
+      s.kind === 'check' ? renderChecks(s) : null,
       ...hints, more);
+  }
+
+  // Remediation stages: a checklist that the server verifies against the live lab.
+  const checking = new Set();   // stages with a check in flight (survives re-renders)
+  function renderChecks(s) {
+    const res = s.last_check ? s.last_check.results : null;
+    const items = s.checks.map((label, i) => {
+      const r = res ? res[i] : null;
+      const mark = r ? (r.ok ? 'ok' : 'bad') : 'todo';
+      return el('li', { class: 'chk ' + mark }, el('span', { class: 'box', text: r ? (r.ok ? '\u2713' : '\u2717') : '\u2022' }), label);
+    });
+    const busy = checking.has(s.id);
+    const btn = el('button', { class: 'btn primary small', text: busy ? 'Checking...' : 'Check my work' });
+    btn.disabled = busy;
+    btn.addEventListener('click', async () => {
+      checking.add(s.id);
+      render();
+      const r = await api('check', { stage: s.id });
+      checking.delete(s.id);
+      toast(r.ok ? r.msg : (r.error || 'Check failed'));
+      await refresh();
+    });
+    const when = s.last_check ? el('span', { class: 'muted small', text: 'last checked ' + fmtTime(s.last_check.at) }) : null;
+    return el('div', { class: 'checks' }, el('ul', {}, ...items), el('div', { class: 'row' }, btn, when));
   }
 
   // ---------------------------------------------------------------- terminals
