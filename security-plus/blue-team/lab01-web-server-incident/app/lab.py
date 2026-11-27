@@ -430,6 +430,7 @@ class Env:
         self.password = student['password']
         self.sec = json.loads(student['secrets'])
         self.started = student['env_started'] or time.time()
+        self.expires = student['env_expires'] or (self.started + 3600)
         self.servers = []
         self.tasks = []
         self.dnsmasq = None
@@ -708,13 +709,18 @@ def mem_status():
 
 
 class Manager:
-    def __init__(self, store, max_envs=30, max_hours=8.0, min_free_mb=160):
+    def __init__(self, store, max_envs=30, lab_minutes=60.0, allow_extend=True, min_free_mb=160):
         self.store = store
         self.envs = {}
         self.busy = set()
         self.sem = asyncio.Semaphore(2)
         self.max_envs = max_envs
-        self.max_hours = max_hours
+        # Every lab machine stops lab_minutes after launch, so abandoned labs free their resources.
+        # A student who is still working can extend it during the last few minutes.
+        self.lab_minutes = lab_minutes
+        self.lab_seconds = lab_minutes * 60
+        self.allow_extend = allow_extend
+        self.extend_window = min(15 * 60, self.lab_seconds / 2)
         self.min_free_mb = min_free_mb
         self.setup_error = None
 
@@ -764,6 +770,8 @@ class Manager:
                 self.store.set_env_started(sid, time.time())
                 env = Env(self, self.store.student_by_sid(sid))
                 await env.build()
+                env.expires = time.time() + self.lab_seconds
+                self.store.set_env_expires(sid, env.expires)
                 self.envs[sid] = env
                 self.store.set_env(sid, 'running', '')
                 log.info('env %s running', sid)
@@ -778,14 +786,31 @@ class Manager:
         finally:
             self.busy.discard(sid)
 
-    def stop(self, sid):
+    def stop(self, sid, msg=''):
         if sid in self.busy:
             return
         self.busy.add(sid)
         self.store.set_env(sid, 'stopping', 'Shutting down...')
-        asyncio.create_task(self._stop(sid))
+        asyncio.create_task(self._stop(sid, msg))
 
-    async def _stop(self, sid):
+    def extend(self, sid, by_instructor=False):
+        """Give a running lab another lab_minutes. Students may do this only near the end."""
+        env = self.envs.get(sid)
+        if env is None or sid in self.busy:
+            return None, 'Your lab is not running.'
+        now = time.time()
+        if by_instructor:
+            env.expires = max(env.expires, now) + self.lab_seconds
+        else:
+            if not self.allow_extend:
+                return None, 'Extending labs is turned off on this server.'
+            if env.expires - now > self.extend_window:
+                return None, 'You can extend in the last %d minutes.' % (self.extend_window // 60)
+            env.expires = now + self.lab_seconds
+        self.store.set_env_expires(sid, env.expires)
+        return env.expires, None
+
+    async def _stop(self, sid, msg=''):
         try:
             env = self.envs.pop(sid, None)
             if env is None:
@@ -794,7 +819,7 @@ class Manager:
         except Exception:
             log.exception('stop %s', sid)
         finally:
-            self.store.set_env(sid, 'none', '')
+            self.store.set_env(sid, 'none', msg)
             self.busy.discard(sid)
 
     async def reconcile(self):
@@ -841,9 +866,10 @@ class Manager:
                 for sid, env in list(self.envs.items()):
                     if sid in self.busy:
                         continue
-                    if now - env.started > self.max_hours * 3600:
-                        log.info('expiring env %s', sid)
-                        self.stop(sid)
+                    if now >= env.expires:
+                        log.info('time is up for env %s, stopping it', sid)
+                        self.stop(sid, 'Your lab stopped after its time ran out, to free resources for others. '
+                                       'Your solved stages are kept. Click Launch lab to start a fresh one.')
                         continue
                     await env.watchdog()
             except Exception:

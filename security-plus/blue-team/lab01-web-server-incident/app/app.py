@@ -63,6 +63,9 @@ class Store:
             token TEXT PRIMARY KEY, student_id INTEGER, created REAL, last_seen REAL, ip TEXT);
         CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT);
         ''')
+        cols = [r[1] for r in self.db.execute('PRAGMA table_info(students)')]
+        if 'env_expires' not in cols:   # databases created before the lab timer existed
+            self.db.execute('ALTER TABLE students ADD COLUMN env_expires REAL')
 
     def q(self, sql, *a):
         return self.db.execute(sql, a)
@@ -116,6 +119,9 @@ class Store:
 
     def set_env_started(self, sid, ts):
         self.q('UPDATE students SET env_started=? WHERE sid=?', ts, sid)
+
+    def set_env_expires(self, sid, ts):
+        self.q('UPDATE students SET env_expires=? WHERE sid=?', ts, sid)
 
     def save_router(self, sid, state):
         self.q('UPDATE students SET router=? WHERE sid=?', json.dumps(state), sid)
@@ -275,8 +281,14 @@ async def healthz(request):
 
 def env_view(st, mgr):
     started = st['env_started']
-    return {'state': st['env_state'], 'msg': st['env_msg'] or '',
-            'started': started, 'expires': (started + mgr.max_hours * 3600) if started else None}
+    env = mgr.envs.get(st['sid'])
+    expires = env.expires if env else (st['env_expires'] or ((started + mgr.lab_seconds) if started else None))
+    running = st['env_state'] == 'running'
+    left = (expires - time.time()) if (running and expires) else None
+    return {'state': st['env_state'], 'msg': st['env_msg'] or '', 'started': started, 'expires': expires,
+            'seconds_left': max(0, int(left)) if left is not None else None,
+            'can_extend': bool(running and mgr.allow_extend and left is not None and left <= mgr.extend_window),
+            'lab_minutes': int(mgr.lab_minutes), 'extend_minutes': int(mgr.extend_window // 60)}
 
 
 async def api_state(request):
@@ -366,6 +378,16 @@ async def api_launch(request):
         return web.json_response({'ok': False, 'error': err})
     mgr.launch(st['sid'], reset_router=True)
     return web.json_response({'ok': True})
+
+
+async def api_extend(request):
+    check_post(request)
+    _, st = require_student(request)
+    expires, err = request.app['mgr'].extend(st['sid'])
+    if err:
+        return web.json_response({'ok': False, 'error': err})
+    log.info('%s extended their lab', st['username'])
+    return web.json_response({'ok': True, 'expires': expires})
 
 
 async def api_stop(request):
@@ -666,6 +688,7 @@ async def api_admin_state(request):
                      'last_seen': st['last_seen'], 'terms': request.app['term_counts'].get(st['sid'], 0)})
     return web.json_response({'auth': True, 'students': rows, 'mem': lab.mem_status(),
                               'running': len(mgr.envs), 'max_envs': mgr.max_envs,
+                              'lab_minutes': int(mgr.lab_minutes),
                               'stage_ids': [x['id'] for x in content.STAGES],
                               'claims_open': store.setting('claims_open', '1') == '1'})
 
@@ -679,14 +702,18 @@ async def api_admin_action(request):
     action = body.get('action')
     if action == 'claims':
         store.set_setting('claims_open', '1' if body.get('value') else '0')
-    elif action in ('reset', 'stop'):
+    elif action in ('reset', 'stop', 'extend'):
         st = store.student_by_username(str(body.get('username', '')))
         if not st:
             return web.json_response({'ok': False, 'error': 'unknown user'})
         if action == 'reset':
             mgr.launch(st['sid'], reset_router=True)
+        elif action == 'extend':
+            _, err = mgr.extend(st['sid'], by_instructor=True)
+            if err:
+                return web.json_response({'ok': False, 'error': err})
         else:
-            mgr.stop(st['sid'])
+            mgr.stop(st['sid'], 'Your instructor stopped your lab.')
     elif action == 'stopall':
         for sid in list(mgr.envs):
             mgr.stop(sid)
@@ -806,8 +833,12 @@ def make_app():
     store = Store(os.path.join(STATE_DIR, 'netlab.db'))
     app = web.Application(middlewares=[https_redirect_mw, headers_mw], client_max_size=64 * 1024)
     app['store'] = store
+    minutes = os.environ.get('NETLAB_LAB_MINUTES', '').strip()
+    if not minutes and os.environ.get('NETLAB_MAX_HOURS', '').strip():   # older setting, in hours
+        minutes = str(float(os.environ['NETLAB_MAX_HOURS']) * 60)
     app['mgr'] = lab.Manager(store, max_envs=int(os.environ.get('NETLAB_MAX_ENVS', '30')),
-                             max_hours=float(os.environ.get('NETLAB_MAX_HOURS', '8')))
+                             lab_minutes=max(5.0, float(minutes or '60')),
+                             allow_extend=os.environ.get('NETLAB_EXTEND', '1') != '0')
     app['admin_key'] = load_admin_key()
     app['acme_tokens'] = {}
     app['tls'] = Tls(app['acme_tokens'])
@@ -832,6 +863,7 @@ def make_app():
     r.add_post('/dashboard/api/logout', api_logout)
     r.add_post('/dashboard/api/launch', api_launch)
     r.add_post('/dashboard/api/stop', api_stop)
+    r.add_post('/dashboard/api/extend', api_extend)
     r.add_post('/dashboard/api/flag', api_flag)
     r.add_post('/dashboard/api/check', api_check)
     r.add_get('/dashboard/ws/term', ws_term)

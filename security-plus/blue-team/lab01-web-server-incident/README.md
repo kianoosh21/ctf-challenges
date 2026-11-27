@@ -63,9 +63,18 @@ On the same computer, open <http://localhost:8081/dashboard>.
    - `http://<ip>:8081/dashboard`: no warning, no encryption. Fine on a classroom LAN.
    - For a trusted certificate, see [Real HTTPS certificate](#real-https-certificate).
 3. Each student clicks **Claim credentials**, then **Launch lab**, then logs in at the `web-01 login:` prompt with the username and password shown on the left.
-4. Open `/dashboard/admin` and sign in with the instructor key to follow progress, reset or stop labs, and close claims once everyone has credentials.
+4. Open `/dashboard/admin` and sign in with the instructor key to follow progress, give a lab more time, reset or stop labs, and close claims once everyone has credentials.
 
 Credentials are tied to the browser session (a cookie), not the IP address, so a classroom behind one NAT works. A student who changes browser uses **Sign in** with the same username and password. **Reset lab** rebuilds the compromised server from scratch and keeps solved stages, which also helps a student who locked themselves out with a firewall rule.
+
+## Lab timer
+
+Every lab machine stops 60 minutes after launch (`LAB_MINUTES`), so labs that students walk away from stop using memory and CPU.
+
+- The dashboard shows when the lab stops and how many minutes are left, and warns at 10 and 2 minutes.
+- In the last 15 minutes an **Extend** button gives another 60 minutes from that moment. Only a student who is still at the dashboard can click it, so abandoned labs always stop.
+- When time runs out, the lab machine is removed. Solved stages are kept, and **Launch lab** starts a fresh one.
+- The instructor view shows the minutes left for each lab and has a **+60 min** button per student.
 
 ## Running several labs on one host
 
@@ -93,7 +102,8 @@ All settings are optional. Copy `.env.example` to `.env`, edit it, then run `doc
 | `HTTPS_PORT` | `8444` | Port for HTTPS on the host |
 | `ADMIN_KEY` | generated | Instructor key. If empty, one is generated on first start and kept. |
 | `MAX_LABS` | `30` | Most lab machines running at once |
-| `LAB_HOURS` | `8` | Hours before a lab machine stops by itself |
+| `LAB_MINUTES` | `60` | Minutes before a lab machine stops by itself (see [Lab timer](#lab-timer)) |
+| `LAB_EXTEND` | `1` | `0` hides the student Extend button. The instructor view can always extend. |
 | `PUBLIC_HOST` | empty | Public IP or DNS name. Turns on Let's Encrypt. |
 | `ACME_STAGING` | `0` | `1` uses the Let's Encrypt staging server for testing |
 | `TLS_CERT`, `TLS_KEY` | empty | Paths inside the container to your own certificate and key |

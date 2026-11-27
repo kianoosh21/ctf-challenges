@@ -72,11 +72,20 @@ The instructor view shows:
 | Student, Password | Every claimed account. Use it when a student loses their credentials. |
 | Flags, Points | Progress per student |
 | Machine, Terms, Last seen | Lab state, open terminals, last activity |
-| Reset, Stop | Rebuild or stop one student's lab. Solved flags are kept. |
+| +60 min, Reset, Stop | Give one student's lab more time, rebuild it, or stop it. Solved flags are kept. |
 | Close claims | Stop new accounts being created once everyone has one |
 | Stop all lab machines | Free the server at the end of the class |
 
-Lab machines stop by themselves after 8 hours (`LAB_HOURS`). Students can relaunch at any time.
+Lab machines stop by themselves after 60 minutes unless the student extends them. See [Lab timer](#lab-timer).
+
+## Lab timer
+
+Every lab machine stops 60 minutes after launch (`LAB_MINUTES`), so labs that students walk away from stop using memory and CPU.
+
+- The dashboard shows when the lab stops and how many minutes are left, and warns at 10 and 2 minutes.
+- In the last 15 minutes an **Extend** button gives another 60 minutes from that moment. Only a student who is still at the dashboard can click it, so abandoned labs always stop.
+- When time runs out, the lab machine is removed. Solved stages are kept, and **Launch lab** starts a fresh one.
+- The instructor view shows the minutes left for each lab and has a **+60 min** button per student.
 
 ## Running several labs on one host
 
@@ -111,7 +120,8 @@ All settings are optional. Copy `.env.example` to `.env` and edit it, then run `
 | `HTTPS_PORT` | `8443` | Port for HTTPS on the host |
 | `ADMIN_KEY` | generated | Instructor key. If empty, one is generated on first start and kept. |
 | `MAX_LABS` | `30` | Most lab machines running at once |
-| `LAB_HOURS` | `8` | Hours before a lab machine stops by itself |
+| `LAB_MINUTES` | `60` | Minutes before a lab machine stops by itself (see [Lab timer](#lab-timer)) |
+| `LAB_EXTEND` | `1` | `0` hides the student Extend button. The instructor view can always extend. |
 | `PUBLIC_HOST` | empty | Public IP or DNS name. Turns on Let's Encrypt. |
 | `ACME_STAGING` | `0` | `1` uses the Let's Encrypt staging server for testing |
 | `TLS_CERT`, `TLS_KEY` | empty | Paths inside the container to your own certificate and key |

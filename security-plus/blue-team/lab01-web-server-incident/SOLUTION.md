@@ -177,6 +177,7 @@ Teaching point: the root cause was not the weak password alone but a privilege b
 
 - The instructor view shows each student's progress per stage. Stages 3 and 4 count as solved the first time every check passes.
 - **Reset lab** rebuilds the server with the same attacker values and keeps solved stages. Use it for students who locked themselves out.
+- Labs stop 60 minutes after launch unless the student clicks **Extend** in the last 15 minutes, or you click **+60 min** in the instructor view. Solved stages are kept.
 - Checks run against the live server, so a student can see exactly which items are still failing. Checks are rate limited to 8 per minute per student.
 - The website must stay up: MON-01 requests it every 30 seconds (visible in `access.log`), and stage 4 tests it.
 - `auth.log` and `access.log` are generated at launch with about a day of realistic history. Live SSH logins by students do not appear in `auth.log` (the container has no syslog daemon).

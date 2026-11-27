@@ -90,8 +90,9 @@
     $('#btnLaunch').disabled = ['starting', 'stopping'].includes(env.state);
     $('#btnReset').classList.toggle('hidden', env.state !== 'running');
     $('#btnStop').classList.toggle('hidden', env.state !== 'running');
-    $('#envTimes').textContent = env.state === 'running' && env.started
-      ? 'Started ' + fmtTime(env.started) + '. Auto-stops at ' + fmtTime(env.expires) + '.' : '';
+    $('#btnExtend').classList.toggle('hidden', !env.can_extend);
+    $('#btnExtend').textContent = 'Extend ' + env.lab_minutes + ' min';
+    renderTimer();
 
     const ov = $('#overlay');
     if (env.state === 'running') {
@@ -103,7 +104,8 @@
         env.state === 'stopping' ? 'Stopping your lab...' : env.state === 'error' ? 'Something went wrong' : 'Your lab is not running';
       $('#ovText').textContent = env.state === 'starting' ? state.ui.building_text :
         env.state === 'error' ? (env.msg + ' Try Launch again, or ask your instructor.') :
-        env.state === 'stopping' ? 'One moment.' : 'Click Launch lab to build your private network. It takes about 10 to 30 seconds.';
+        env.state === 'stopping' ? 'One moment.' : (env.msg ||
+        'Click Launch lab to build your private network. It takes about 10 to 30 seconds.');
     }
     if (lastEnvState && lastEnvState !== 'running' && env.state === 'running') {
       terms.forEach((t) => { if (!t.ws) connect(t); });
@@ -126,6 +128,28 @@
     if (!rows.length) rows.push(el('tr', {}, el('td', { colspan: '4', class: 'muted', text: 'No flags yet. Be the first!' })));
     tb.replaceChildren(...rows);
   }
+
+  // Lab timer: countdown under the machine card, warnings near the end.
+  const warned = {};
+  function renderTimer() {
+    const env = state && state.env;
+    const box = $('#envTimes');
+    if (!env || env.state !== 'running' || !env.expires) { box.textContent = ''; box.classList.remove('warn'); return; }
+    const left = Math.max(0, Math.round(env.expires - Date.now() / 1000));
+    const mins = Math.ceil(left / 60);
+    box.textContent = 'Stops at ' + fmtTime(env.expires) + ' (' + (left < 60 ? 'less than a minute' : mins + ' min') +
+      ' left). Labs stop after ' + env.lab_minutes + ' minutes to free resources.' +
+      (env.can_extend ? ' Still working? Click Extend.' : '');
+    box.classList.toggle('warn', left <= 10 * 60);
+    for (const m of [10, 2]) {
+      const key = env.expires + ':' + m;
+      if (left <= m * 60 && left > 0 && !warned[key]) {
+        warned[key] = true;
+        toast('Your lab stops in ' + m + ' minutes.' + (env.can_extend ? ' Click Extend on the left to keep working.' : ''));
+      }
+    }
+  }
+  setInterval(() => { if (state && state.claimed) renderTimer(); }, 15000);
 
   function hintKey(stage) { return 'nl_hints_' + state.username + '_' + stage; }
 
@@ -289,6 +313,12 @@
     if (!confirm('Reset rebuilds your whole network in its original broken state. Your solved flags are kept. Continue?')) return;
     const r = await api('launch', { reset: true });
     if (!r.ok) { toast(r.error || 'Reset failed'); return; }
+    await refresh();
+  });
+
+  $('#btnExtend').addEventListener('click', async () => {
+    const r = await api('extend', {});
+    toast(r.ok ? 'Extended. Your lab now stops at ' + fmtTime(r.expires) + '.' : (r.error || 'Could not extend.'));
     await refresh();
   });
 

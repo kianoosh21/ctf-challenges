@@ -128,3 +128,5 @@ input:focus { outline: none; border-color: var(--accent); }
 .checks li.todo .box { color: #64748b; }
 .checks .row { align-items: center; gap: 10px; }
 .btn.small { padding: 5px 10px; font-size: 13px; }
+/* lab timer */
+#envTimes.warn { color: #fbbf24; font-weight: 600; }

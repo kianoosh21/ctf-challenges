@@ -11,7 +11,7 @@ Student URL: `http(s)://<lab-host>:<port>/dashboard`. Instructor view: `/dashboa
 - **Launch lab** builds a private network for that student in about 10 seconds: a workstation (Docker container) plus a switch, router, printer, admin PC, DNS server and web server. Every student gets the same IP addresses, and the networks are fully isolated from each other, from the host and from the internet.
 - The terminal runs in the browser. The workstation shows a `fin-ws07 login:` prompt, and the student logs in with their claimed credentials. They have sudo.
 - Flags are unique per student (`NPLUS{...}`), so a flag copied from a neighbour is rejected.
-- **Reset lab** rebuilds the network in its original broken state and keeps solved flags. Labs auto-stop 8 hours after launch.
+- **Reset lab** rebuilds the network in its original broken state and keeps solved flags. Labs stop 60 minutes after launch unless the student clicks **Extend** in the last 15 minutes.
 
 ## Topology (do not show students before the lab)
 
